@@ -1,8 +1,4 @@
-I have updated the comprehensive version of your `README.md` to reflect the addition of `gcs_service.py` to the service tree. This component has been woven into the file layout architecture, verification checkpoints, and environmental variable documentation so your team knows precisely how local document uploads map straight to Google Cloud Storage.
 
----
-
-```markdown
 # Enterprise Multi-Agent System with Google ADK, Neo4j, and CopilotKit
 
 A production-ready architectural template for deploying collaborative AI agents. This platform leverages Google's Agent Development Kit (ADK) for orchestration, Neo4j for graph-native session memory and GraphRAG, and CopilotKit for live streaming Generative UI over the AG-UI protocol.
