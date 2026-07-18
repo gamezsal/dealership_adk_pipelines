@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request  # Added Request import here!
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from neo4j import GraphDatabase
@@ -37,11 +37,19 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------
+# NEW: Silent Slash Normalization Middleware
+# Intercepts "/api/copilotkit" requests and silently normalizes
+# them internally to "/api/copilotkit/" to bypass the 307 Redirect.
+# ---------------------------------------------------------
+@app.middleware("http")
+async def normalize_copilotkit_slash(request: Request, call_next):
+    if request.url.path == "/api/copilotkit":
+        request.scope["path"] = "/api/copilotkit/"
+    return await call_next(request)
+
+# ---------------------------------------------------------
 # STORY 1.2: AG-UI AGENT STREAMING ENDPOINT
 # ---------------------------------------------------------
-# This wraps your Python ADK agent so the React frontend 
-# can stream its thoughts, tool calls, and state via AG-UI.
-
 # 1. Create the ADKAgent wrapper instance
 adk_agent_wrapper = ADKAgent(root_agent)
 
