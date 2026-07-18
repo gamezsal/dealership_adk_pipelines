@@ -9,8 +9,8 @@ const sidebarLabels = {
 
 function App() {
   return (
-    // NEW: Point directly to port 8000 and explicitly select the "default" agent
-    <CopilotKit runtimeUrl="http://127.0.0.1:8000/api/copilotkit/" agent="0">
+    // NEW: Point to the proxy path and select the "default" agent
+    <CopilotKit runtimeUrl="/api/copilotkit/" agent="default">
 
       <CopilotSidebar
         defaultOpen={true}
