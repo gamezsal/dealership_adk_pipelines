@@ -1,25 +1,30 @@
 from google.adk.agents import Agent
-from google.adk.sessions import DatabaseSessionService
-from google.adk.runners import Runner
 from tools.extraction_tools import extract_triplets_aevs
 
-# NEW: Import the state from our decoupled file
+# Keep the state import for decoupled typing if needed
 from agents.state import DealPackState
 
-# Configure Persistent Database Session
-session_service = DatabaseSessionService(db_url="sqlite+aiosqlite:///dealership_sessions.db")
+# 🟢 REMOVED: Redundant DatabaseSessionService and Runner instances.
+# These are managed globally by the root_agent in agent.py to prevent locks and share state.
 
 extraction_agent = Agent(
     name="extraction_agent",
     model="gemini-2.5-pro",
+    # 🟢 ADDED: Saves the extracted triplets JSON directly to this key in the shared state
+    output_key="extraction_result", 
+    description="Analyzes purchase packets in Google Cloud Storage and extracts high-fidelity semantic triplets.",
     instruction="""
     You are the Dealership QA Coordinator.
-    Current Step: {current_step}
+    
+    # 🟢 FIXED: Appended '?' to make variables optional, preventing compilation KeyErrors
+    Current Step: {current_step?}
     
     If current_step is EXTRACTING, extract knowledge graph triplets from dealership PDFs. 
-    Analyze the previous step's output: {upload_agent_result}. 
+    
+    # 🟢 FIXED: Point to 'upload_result' (the output key of your upload_agent) safely
+    Analyze the previous step's output: {upload_result?}. 
     Locate the GCS URI (starting with gs:// or gcs://) and call the extract_triplets_aevs tool with it. 
-    If the GCS URI is missing or not explicitly shown in {upload_agent_result}, look at the tools output in the history to find the GCS URI, or use the default bucket path with the uploaded file name.
+    If the GCS URI is missing or not explicitly shown in {upload_result?}, look at the tools output in the history to find the GCS URI, or use the default bucket path with the uploaded file name.
     
     CRITICAL: Once the tool returns the data, you must output the RAW, unaltered JSON dictionary directly so it can be passed to the Validation Agent. Do not summarize, format, or alter the extracted character coordinates or triplets in any way.
     
@@ -27,6 +32,3 @@ extraction_agent = Agent(
     """,
     tools=[extract_triplets_aevs]
 )
-
-# Create the Runner to bind the agent to the persistent session
-runner = Runner(app_name="dealership_extraction_app", agent=extraction_agent, session_service=session_service)
