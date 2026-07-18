@@ -10,7 +10,8 @@ const sidebarLabels = {
 function App() {
   return (
     // NEW: Point to the proxy path and select the "default" agent
-    <CopilotKit runtimeUrl="/api/copilotkit/" agent="default">
+    //<CopilotKit runtimeUrl="/api/copilotkit/" agent="default">
+    <CopilotKit runtimeUrl="http://localhost:4000/api/copilotkit/" agent="default">
 
       <CopilotSidebar
         defaultOpen={true}
