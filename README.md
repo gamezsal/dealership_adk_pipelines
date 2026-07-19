@@ -1,139 +1,128 @@
+# Dealership QA & Provenance Compliance Pipeline
 
-# Enterprise Multi-Agent System with Google ADK, Neo4j, and CopilotKit
+An enterprise-grade, multi-agent AI system designed to ingest automotive dealership deal matrix files, extract critical purchase packets with precise character coordinates, validate compliance constraints, and store audit-ready provenance records inside a Neo4j Graph Database.
 
-A production-ready architectural template for deploying collaborative AI agents. This platform leverages Google's Agent Development Kit (ADK) for orchestration, Neo4j for graph-native session memory and GraphRAG, and CopilotKit for live streaming Generative UI over the AG-UI protocol.
+The system utilizes Google's **Agent Development Kit (ADK)** for agent orchestration, **Neo4j AuraDB** as a graph-native memory and data layer, and **CopilotKit** combined with the **AG-UI Protocol** to deliver real-time streaming state and interactive highlights directly to a React frontend.
 
-## Architecture Highlights
-- **Structured Multi-Agent Chains:** Utilizes code-first orchestration engine definitions via Sequential and Parallel agent delegations.
-- **Graph-Native Context Tracking:** Implements persistent session management using `agent-memory` to maintain human-in-the-loop state loops.
-- **Bi-directional Generative UI:** Synchronizes agent states with responsive React elements natively via unified SSE streams.
-- **Managed Object Storage Pipelines:** Ingests local media, text structures, and PDF analytics chunks securely via direct API wrappers.
+---
 
-## Project Structure
-```text
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── agent.py         # Main ADK Agent and flow logic definitions
-│   │   ├── main.py          # FastAPI app wrapper initialization
-│   │   └── gcs_service.py   # Infrastructure service managing Google Cloud Storage bucket connections
-│   ├── Dockerfile
-│   └── requirements.txt
-└── frontend/
-    ├── src/
-    │   ├── components/      # Generative UI components mapping to agent tools
-    │   └── App.tsx          # CopilotKit Provider and chat interface wrappers
-    ├── package.json
-    └── vite.config.ts
+## 🏗️ System Architecture
 
 ```
-
-## Setup & Installation
-
-### 1. Prerequisites
-
-* Python 3.10+ or Node.js v18+
-* Active Neo4j Instance (Local Docker or AuraDB)
-* Google Cloud Account with Vertex AI and Google Cloud Storage APIs enabled
-
-### 2. Backend Configuration
-
-Navigate to the `backend/` directory, configure your environment, and initialize:
-
-```bash
-cd backend
-cp .env.example .env
-
+                                    ┌──────────────────────┐
+                                    │    React Frontend    │
+                                    │     (Vite Client)    │
+                                    └──────────┬───────────┘
+                                               │ (AG-UI Events / SSE)
+                                               ▼
+                                    ┌──────────────────────┐
+                                    │ CopilotKit Runtime   │
+                                    │     (Node Server)    │
+                                    └──────────┬───────────┘
+                                               │ (Proxy HTTP)
+                                               ▼
+                                    ┌──────────────────────┐
+                                    │   FastAPI Backend    │
+                                    │     (ADK Engine)     │
+                                    └────┬─────────────┬───┘
+                                         │             │
+                                         ▼             ▼
+                                   ┌───────────┐ ┌───────────┐
+                                   │  Google   │ │   Neo4j   │
+                                   │   Cloud   │ │  AuraDB   │
+                                   │  Storage  │ │  (Graph)  │
+                                   └───────────┘ └───────────┘
 ```
 
-Populate the `.env` file with your connection strings (including the targeted GCS bucket identity):
+The system is built on a **3-Tier Agentic Architecture**:
+1. **The Interactive Layer (Frontend):** A React Single-Page Application utilizing CopilotKit components and headless state hooks. It captures user inputs and file uploads and displays the interactive compliance approval interface.
+2. **The Orchestration Bridge (Middleware/Runtime):** A Node.js runtime proxying client requests, normalizing Server-Sent Events (SSE), and coordinating the conversation threads.
+3. **The Multi-Agent Engine (Backend):** A FastAPI server hosting a Google ADK `SequentialAgent` workflow. It splits cognitive tasks among four specialized, domain-specific sub-agents:
+   * **Upload Agent:** Stages and persists incoming file payloads to Google Cloud Storage.
+   * **Extraction Agent:** Multimodal parsing of dealer matrices using Gemini 2.5 Pro to extract key properties and character offsets.
+   * **Validation Agent:** Audits data fields against strict compliance metrics and manages the human-in-the-loop (HITL) checkpoint.
+   * **Database Agent:** Uses a Neo4j Model Context Protocol (MCP) toolset to persist core purchase and PROV-O compliance records.
 
-```ini
-PORT=8080
-GEMINI_API_KEY="your-gemini-api-key"
-NEO4J_URI="bolt://localhost:7687"
+---
+
+## 💻 Tech Stack
+
+### Frontend Client
+* **Framework:** React 18+ with TypeScript [144]
+* **Build System:** Vite (providing ESM-based instant hot module replacement) [144, 511]
+* **Copilot Layer:** `@copilotkit/react-core` (v2) and `@copilotkit/react-ui` [59, 410]
+* **Styling & Components:** Tailwind CSS & shadcn/ui primitives [61, 366]
+* **Communication Wire:** AG-UI Protocol over Server-Sent Events (SSE) [362, 584]
+
+### Backend Services
+* **Language:** Python 3.10+ (Optimized for 3.13) [138, 413]
+* **API Framework:** FastAPI served by high-speed Uvicorn ASGI workers [143]
+* **Orchestration:** Google Agent Development Kit (ADK) [143, 403]
+* **Database Driver:** Official `neo4j` Python driver with native `neo4j-rust-ext` [143]
+* **Persistent Checkpointer:** Google ADK `DatabaseSessionService` (backed by SQLite/PostgreSQL) [80, USAGE.md]
+* **Subprocess Tools:** Model Context Protocol (MCP) using the `mcp-neo4j-cypher` server [182, 398]
+
+---
+
+## 🔑 Environment Configuration
+
+Create a `.env` file in your **`backend/`** directory. Populate it with your active credentials:
+
+```env
+# Google Gemini API
+GEMINI_API_KEY="AIzaSy..."
+
+# Neo4j AuraDB Database Connection
+NEO4J_URI="neo4j+s://xxxxxxxx.databases.neo4j.io"
 NEO4J_USER="neo4j"
-NEO4J_PASSWORD="your-strong-password"
-GOOGLE_CLOUD_PROJECT="your-gcp-project-id"
-GOOGLE_CLOUD_LOCATION="global"
-GCS_BUCKET_NAME="your-enterprise-agent-storage-bucket"
+NEO4J_PASSWORD="your-secure-auradb-password"
+NEO4J_DATABASE="neo4j"
 
+# Google Cloud Storage (PDF Staging)
+GCS_BUCKET_NAME="Bucket_Name"
+GOOGLE_APPLICATION_CREDENTIALS="path/to/your/gcp-service-account.json"
 ```
 
-Install dependencies and start the local server:
+---
 
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+## 🚀 Local Startup Sequence
 
+To launch the entire stack on Windows, you must spin up your development processes in a **coordinated 3-terminal sequence**. 
+
+> ⚠️ **CRITICAL WINDOWS SUBPROCESS NOTE:** When running Uvicorn on Windows, do **NOT** use the `--reload` flag in your active backend terminal. On Windows, hot-reloading breaks standard input/output (`stdio`) pipes bound to the background MCP database processes, resulting in silent stream crashes.
+
+### Step 1: Start the Python Backend (Terminal 1)
+Initialize your Python environment, verify environment variables, and launch the ASGI server in a stable, single-process container:
+```powershell
+cd backend
+.venv\Scripts\activate
+uvicorn api:app --host 127.0.0.1 --port 8000
 ```
+*Wait until you see `INFO: Application startup complete` in your console logs.*
 
-### 3. Frontend Configuration
+### Step 2: Start the Copilot Runtime Node Proxy (Terminal 2)
+Boot the server-side middleware to act as the communication bridge between Vite and FastAPI:
+```powershell
+cd runtime
+npm install
+npm start
+```
+*Look for `[CopilotKit Runtime] anonymous telemetry enabled` to confirm the gateway is listening.*
 
-The React single-page application has been successfully scaffolded inside the `frontend/` directory using Vite, complete with proxy configurations and CopilotKit core runtime wrappers.
-
-To install the environment tracking layers and run the frontend server:
-
-```bash
-cd ../frontend
+### Step 3: Start the React Frontend (Terminal 3)
+Compile your TypeScript resources and launch the local browser development server:
+```powershell
+cd frontend
 npm install
 npm run dev
-
 ```
+*Navigate your browser to `http://localhost:5173/` to view the live dashboard.*
 
 ---
 
-## Testing & Verification (Work In Progress)
+## 🧪 Verification & Inspection Roadmap
 
-> ⚠️ **Status:** The environment blocks are fully installed and wired, but end-to-end integration tests are currently pending. Use the steps below to validate the components as we progress.
-
-### Local Verification Roadmap
-
-1. **Verify Backend Availability:**
-Ensure the FastAPI app is serving routes without issues by pinging the status endpoint:
-```bash
-curl http://localhost:8080/health
-
-```
-
-
-2. **Verify Frontend Dev Server & Proxy Connection:**
-Open `http://localhost:5173` in your browser. Verify that requests sent to `/api/*` successfully pass through Vite's dev server proxy to the FastAPI backend without throwing origin or CORS blocks.
-3. **Verify CopilotKit Runtime Endpoint:**
-Check if the agentic streaming platform endpoint is responsive by requesting descriptions:
-```bash
-curl http://localhost:8080/api/copilotkit
-
-```
-
-
-4. **Verify GCS Storage Handshake:**
-Verify that your local user permissions or standard Application Default Credentials (ADC) let `gcs_service.py` securely list/write objects without access errors.
-5. **Verify Neo4j Connection:**
-Ensure that the backend logs confirm a stable handshake with `agent-memory` over the Bolt network line, indicating persistent checkpoints are tracking properly.
-
----
-
-## Deployment
-
-### Cloud Run (Using ADK CLI)
-
-This application is optimized for containerized cloud architecture. You can compile and ship the backend service seamlessly:
-
-```bash
-cd backend
-adk deploy --project=YOUR_PROJECT_ID --region=YOUR_DEPLOY_REGION
-
-```
-
-*Note: For production instances, configure your runtime settings to map secrets directly from Google Secret Manager instead of tracking environment variables in plaintext.*
-
-## License
-
-Distributed under the MIT License. See `LICENSE` for details.
-
-```
-
-```
+1. **API Handshake (CORS Check):** Verify that the Vite development server proxy is successfully routing client requests to FastAPI. Run a GET request to `http://localhost:5173/api/copilotkit` or test via the browser.
+2. **MCP Process Safety:** Ensure that no `BrokenPipeError` or `TaskGroup` exceptions appear in the backend terminal when starting your first turn. If errors occur, verify that you started Uvicorn without `--reload`.
+3. **Database Checkpoint Verification:** Verify that persistent state checkpoints are functioning. On initial prompt, verify that the backend creates a `dealership_sessions.db` SQLite file locally or writes cleanly to your persistent schema.
+4. **multimodal Attachment Support:** Ensure the upload button is visible in the chat composer interface. Drag and drop a Deal Matrix PDF to kick off the Upload Agent ingestion loop.
