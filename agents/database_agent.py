@@ -1,7 +1,16 @@
 import os
+import sys
 from dotenv import load_dotenv
 from google.adk.agents import Agent
 from google.adk.tools.mcp_tool.mcp_toolset import McpToolset, StdioConnectionParams, StdioServerParameters
+
+# =========================================================================
+# 🟢 CRITICAL AG-UI / COPILOTKIT STREAMING PATCH
+# Monkey-patches McpToolset to make it completely deepcopy-safe.
+# This prevents ag_ui_adk from crashing when duplicating system pipe handles.
+# =========================================================================
+McpToolset.__deepcopy__ = lambda self, memo: self
+# =========================================================================
 
 # Load environment variables from parent .env file
 _env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -13,6 +22,15 @@ neo4j_user = os.getenv("NEO4J_USER", "neo4j")
 neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
 neo4j_database = os.getenv("NEO4J_DATABASE", "neo4j")
 
+# 🟢 Establish environmental variables globally in Python's os.environ dictionary.
+# This ensures that when the Stdio connection launches 'mcp-neo4j-cypher',
+# the child subprocess inherits the exact credentials from Uvicorn, bypassing
+# argument parsing boundaries.
+os.environ["NEO4J_URI"] = neo4j_uri
+os.environ["NEO4J_USERNAME"] = neo4j_user  # ◄── Map NEO4J_USER to NEO4J_USERNAME
+os.environ["NEO4J_PASSWORD"] = neo4j_password
+os.environ["NEO4J_DATABASE"] = neo4j_database
+
 # Resolve absolute path to the virtual environment's mcp-neo4j-cypher executable
 _mcp_cmd = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", ".venv", "Scripts", "mcp-neo4j-cypher.exe")
@@ -20,15 +38,11 @@ _mcp_cmd = os.path.abspath(
 
 # Initialize the ADK McpToolset connecting to the Neo4j MCP Server
 neo4j_mcp = McpToolset(
+    errlog=None, 
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command=_mcp_cmd,
-            args=[
-                "--db-url", neo4j_uri,
-                "--username", neo4j_user,
-                "--password", neo4j_password,
-                "--database", neo4j_database
-            ]
+            args=[]  # 🟢 args is empty! It inherits credentials perfectly from os.environ
         )
     )
 )
@@ -36,14 +50,12 @@ neo4j_mcp = McpToolset(
 database_agent = Agent(
     name="database_agent",
     model="gemini-2.5-pro",
-    # 🟢 High-level description for parent routing and diagnostics
+    output_key="database_agent_result",
     description="Persists validated dealership purchase packets and PROV-O compliance records to Neo4j.",
-    # 🟢 System prompt: Enforces strict model guidelines and tool-use behaviors
     instruction="""You persist validated graph data to Neo4j. Only proceed if the Validation Agent returns a 'compliant' status.
     
     You must map the data using this EXACT two-part ontology blueprint:
     
-    # 🟢 FIXED: Swapped curly braces to square brackets to prevent template engine crashes
     PART 1: CORE BUSINESS GRAPH
     1. Create a (:Person [name]) node.
     2. Create a (:Vehicle [vin, odometer]) node.
@@ -63,7 +75,6 @@ database_agent = Agent(
     - Do NOT generate Python code, scripts, or print() statements. 
     - Pass your generated Cypher statement directly into the 'query' parameter of the tool using standard function calling.
     
-    # 🟢 FIXED: Made the validation result optional with a '?' to prevent Turn-1 KeyErrors
     Here is the extracted data: {validation_agent_result?}""",
     tools=[neo4j_mcp]
 )
