@@ -12,38 +12,56 @@ from google.adk.tools.mcp_tool.mcp_toolset import McpToolset, StdioConnectionPar
 McpToolset.__deepcopy__ = lambda self, memo: self
 # =========================================================================
 
-# Load environment variables from parent .env file
-_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
+# 🟢 ROBUST ABSOLUTE ROOT RESOLUTION
+# Using nested dirnames ensures .env is loaded cleanly regardless of Windows slash notation
+_agents_dir = os.path.dirname(os.path.abspath(__file__))
+_root_dir = os.path.dirname(_agents_dir)
+_env_path = os.path.join(_root_dir, ".env")
 load_dotenv(_env_path)
 
 # Retrieve Neo4j credentials
 neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+neo4j_user = os.getenv("NEO4J_USERNAME") or os.getenv("NEO4J_USER") or "neo4j"
 neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
 neo4j_database = os.getenv("NEO4J_DATABASE", "neo4j")
 
 # 🟢 Establish environmental variables globally in Python's os.environ dictionary.
-# This ensures that when the Stdio connection launches 'mcp-neo4j-cypher',
-# the child subprocess inherits the exact credentials from Uvicorn, bypassing
-# argument parsing boundaries.
 os.environ["NEO4J_URI"] = neo4j_uri
-os.environ["NEO4J_USERNAME"] = neo4j_user  # ◄── Map NEO4J_USER to NEO4J_USERNAME
+os.environ["NEO4J_USERNAME"] = neo4j_user
 os.environ["NEO4J_PASSWORD"] = neo4j_password
 os.environ["NEO4J_DATABASE"] = neo4j_database
 
+# 🔬 Diagnostic Startup Prints (Monitored in your Uvicorn terminal)
+print("\n" + "="*60)
+print("🤖 ADK DATABASE AGENT: BOOTSTRAP ENVIRONMENT VERIFICATION")
+print(f"🔗 Target AuraDB URI -> {neo4j_uri}")
+print(f"👤 Administrative User -> {neo4j_user}")
+print(f"🔑 Password Configured -> {len(neo4j_password) if neo4j_password else 0} characters")
+print("="*60 + "\n")
+
 # Resolve absolute path to the virtual environment's mcp-neo4j-cypher executable
 _mcp_cmd = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", ".venv", "Scripts", "mcp-neo4j-cypher.exe")
+    os.path.join(_root_dir, ".venv", "Scripts", "mcp-neo4j-cypher.exe")
 )
 
 # Initialize the ADK McpToolset connecting to the Neo4j MCP Server
+# 🟢 CRITICAL WINDOWS SUBPROCESS PATCH:
+# We explicitly inject the 'env' dictionary here to guarantee these variables
+# are handed directly to mcp-neo4j-cypher.exe upon execution.
 neo4j_mcp = McpToolset(
     errlog=None, 
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command=_mcp_cmd,
-            args=[]  # 🟢 args is empty! It inherits credentials perfectly from os.environ
-        )
+            args=[],  
+            env={
+                "NEO4J_URI": neo4j_uri,
+                "NEO4J_USERNAME": neo4j_user,
+                "NEO4J_PASSWORD": neo4j_password,
+                "NEO4J_DATABASE": neo4j_database
+            }
+        ),
+        timeout=60.0  # ◄── Extends request execution timeouts up to 60 seconds
     )
 )
 
